@@ -85,7 +85,7 @@ public:
         }
 
         if (!privateNh.getParam("color_code_legend", colorCodeLegend)) {
-            colorCodeLegend = true;
+            colorCodeLegend = false;
         }
 
         if (!privateNh.getParam("frame", frame)) {
@@ -97,7 +97,7 @@ public:
         }
 
         if (!privateNh.getParam("use_tcp", useTcp)) {
-            useTcp = true;
+            useTcp = false;
         }
 
         if (!privateNh.getParam("host", host)) {
