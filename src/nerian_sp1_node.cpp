@@ -312,12 +312,32 @@ private:
 
         // Copy intensity values
         if(intensityChannel) {
-            for(int y=0; y<height; y++) {
-                for(int x=0; x<width; x++) {
-                    pointCloudMsg->data[(y*width + x)*4*sizeof(float) + 3*sizeof(float)]
-                        = leftData[y * leftStride + x];
+            // Get pointers to the beginnig and end of the point cloud
+            unsigned char* cloudStart = &pointCloudMsg->data[0];
+            unsigned char* cloudEnd = &pointCloudMsg->data[0] + width*height*4*sizeof(float);
+
+            // Get pointer to the current pixel and end of current row
+            unsigned char* imagePtr = &leftData[0];
+            unsigned char* rowEndPtr = imagePtr + width;
+
+            for(unsigned char* cloudPtr = cloudStart + 3*sizeof(float);
+                    cloudPtr < cloudEnd; cloudPtr+= 4*sizeof(float)) {
+                *cloudPtr = *imagePtr;
+
+                imagePtr++;
+                if(imagePtr == rowEndPtr) {
+                    // Progress to next row
+                    imagePtr += (leftStride - width);
+                    rowEndPtr = imagePtr + width;
                 }
             }
+
+            //for(int y=0; y<height; y++) {
+                //for(int x=0; x<width; x++) {
+                    //pointCloudMsg->data[(y*width + x)*4*sizeof(float) + 3*sizeof(float)]
+                        //= leftData[y * leftStride + x];
+                //}
+            //}
         }
 
         cloudPublisher->publish(pointCloudMsg);
