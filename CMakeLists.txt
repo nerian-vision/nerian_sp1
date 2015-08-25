@@ -52,6 +52,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/lib/libvisiontran
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/lib)
+
 ###########
 ## Build ##
 ###########
