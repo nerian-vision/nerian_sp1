@@ -64,18 +64,6 @@ public:
         ros::NodeHandle privateNh("~");
 
         // Read all ROS parameters
-        if (!privateNh.getParam("publish_point_cloud", publishCloud)) {
-            publishCloud = true;
-        }
-
-        if (!privateNh.getParam("publish_disparity_map", publishDisparity)) {
-            publishDisparity = true;
-        }
-
-        if (!privateNh.getParam("publish_left_image", publishImage)) {
-            publishImage = true;
-        }
-
         if (!privateNh.getParam("point_cloud_intensity_channel", intensityChannel)) {
             intensityChannel = true;
         }
@@ -104,18 +92,23 @@ public:
             host = "";
         }
 
+        if (!privateNh.getParam("ros_coordinate_system", rosCoordinateSystem)) {
+            rosCoordinateSystem = true;
+        }
+
+        if (!privateNh.getParam("calibration_file", calibFile)) {
+            calibFile = "";
+        }
+
         // Create publishers
-        if(publishDisparity) {
-            disparityPublisher = new ros::Publisher(nh.advertise<sensor_msgs::Image>(
-                "/nerian_sp1/disparity_map", 10));
-        }
+        disparityPublisher = new ros::Publisher(nh.advertise<sensor_msgs::Image>(
+            "/nerian_sp1/disparity_map", 10));
+        imagePublisher = new ros::Publisher(nh.advertise<sensor_msgs::Image>(
+            "/nerian_sp1/left_image", 10));
 
-        if(publishImage) {
-            imagePublisher = new ros::Publisher(nh.advertise<sensor_msgs::Image>(
-                "/nerian_sp1/left_image", 10));
-        }
-
-        if(publishCloud) {
+        if(calibFile == "") {
+            ROS_WARN("No camera calibration file configured. Point cloud publishing will be disabled!");
+        } else {
             // For point cloud publishing we have to do more initializations
             initPointCloud(privateNh);
         }
@@ -169,15 +162,15 @@ public:
                 }
 
                 // Publish the selected messages
-                if(publishImage) {
-                    publishImageMsg(dispWidth, dispHeight, dispStride, dispData, stamp);
+                if(imagePublisher->getNumSubscribers() > 0) {
+                    publishImageMsg(leftWidth, leftHeight, leftStride, leftData, stamp);
                 }
 
-                if(publishDisparity) {
+                if(disparityPublisher->getNumSubscribers() > 0) {
                     publishDispMapMsg(dispWidth, dispHeight, dispStride, dispData, stamp);
                 }
 
-                if(publishCloud) {
+                if(cloudPublisher != NULL && cloudPublisher->getNumSubscribers() > 0) {
                     publishPointCloudMsg(dispWidth, dispHeight, leftStride, dispStride,
                         leftData, dispData, stamp);
                 }
@@ -187,7 +180,7 @@ public:
                 if(stamp.sec != lastLogTime.sec) {
                     double dt = (stamp - lastLogTime).toSec();
                     double fps = (frameNum - lastLogFrames) / dt;
-                    cout << fixed << setprecision(1) << fps << " fps" << endl;
+                    ROS_INFO("%.1f fps", fps);
                     lastLogFrames = frameNum;
                     lastLogTime = stamp;
                 }
@@ -206,17 +199,15 @@ private:
     ros::Publisher* imagePublisher;
 
     // Parameters
-    bool publishCloud;
-    bool publishDisparity;
-    bool publishImage;
     bool intensityChannel;
     bool useTcp;
     bool colorCodeDispMap;
     bool colorCodeLegend;
-
+    bool rosCoordinateSystem;
     std::string port;
     std::string frame;
     std::string host;
+    std::string calibFile;
 
     // Other members
     int frameNum;
@@ -258,7 +249,7 @@ private:
 
         if(!colorCodeDispMap) {
             cvImg.image = monoImg;
-            encoding = "mono8";
+            encoding = "mono16";
         } else {
             if(colDispMap.data == NULL) {
                 if(colorCodeLegend) {
@@ -341,10 +332,8 @@ private:
             "/nerian_sp1/point_cloud", 10));
 
         // Read disparity-to-depth mapping matrix from calibration data
-        std::string calibFile;
         cv::FileStorage fs;
-        if (!privateNh.getParam("calibration_file", calibFile) ||
-                !fs.open(calibFile, cv::FileStorage::READ)) {
+        if (!fs.open(calibFile, cv::FileStorage::READ)) {
             throw std::runtime_error("Error reading calibration file!");
         }
 
@@ -354,16 +343,33 @@ private:
             throw std::runtime_error("Q matrix has invalid size!");
         }
 
-        // Transform Q matrix to match the ROS coordinate system:
-        // swap y / z axis and invert z axis
-        swap(qMatrix[4], qMatrix[8]);
-        swap(qMatrix[5], qMatrix[9]);
-        swap(qMatrix[6], qMatrix[10]);
-        swap(qMatrix[7], qMatrix[11]);
-        qMatrix[8] = -qMatrix[8];
-        qMatrix[9] = -qMatrix[9];
-        qMatrix[10] = -qMatrix[10];
-        qMatrix[11] = -qMatrix[11];
+        if(rosCoordinateSystem) {
+            // Transform Q matrix to match the ROS coordinate system:
+
+            // Swap y / z axis
+            swap(qMatrix[4], qMatrix[8]);
+            swap(qMatrix[5], qMatrix[9]);
+            swap(qMatrix[6], qMatrix[10]);
+            swap(qMatrix[7], qMatrix[11]);
+
+            // Swap x / y axis
+            swap(qMatrix[0], qMatrix[4]);
+            swap(qMatrix[1], qMatrix[5]);
+            swap(qMatrix[2], qMatrix[6]);
+            swap(qMatrix[3], qMatrix[7]);
+
+            // Invert y axis
+            qMatrix[4] = -qMatrix[4];
+            qMatrix[5] = -qMatrix[5];
+            qMatrix[6] = -qMatrix[6];
+            qMatrix[7] = -qMatrix[7];
+
+            // Invert z axis
+            qMatrix[8] = -qMatrix[8];
+            qMatrix[9] = -qMatrix[9];
+            qMatrix[10] = -qMatrix[10];
+            qMatrix[11] = -qMatrix[11];
+        }
 
         // Initialize 3D reconstruction class
         recon3d = new Reconstruct3D(&qMatrix[0]);
