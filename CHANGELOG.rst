@@ -2,7 +2,7 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.1 (2015-08-25)
+------------------
 * Initial release
 * Contributors: Konstantin Schauwecker, nerian-vision
