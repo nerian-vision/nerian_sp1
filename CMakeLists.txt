@@ -4,10 +4,23 @@ project(nerian_sp1)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs cv_bridge)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs cv_bridge
+    message_generation)
 
 ## System dependencies are found with CMake's conventions
 find_package(OpenCV REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(SDL REQUIRED)
+
+################################################
+## Declare ROS messages, services and actions ##
+################################################
+
+# Generate messages in the 'msg' folder
+add_message_files(FILES StereoCameraInfo.msg)
+
+# Generate added messages and services with any dependencies listed here
+generate_messages(DEPENDENCIES sensor_msgs)
 
 ###################################
 ## catkin specific configuration ##
@@ -19,9 +32,9 @@ find_package(OpenCV REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+#  INCLUDE_DIRS ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   LIBRARIES visiontransfer
-#  CATKIN_DEPENDS other_catkin_pkg
+  CATKIN_DEPENDS message_runtime sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -33,14 +46,11 @@ catkin_package(
 execute_process(COMMAND tar --keep-newer-files -xvJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-1_0-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR})
 
 # Build sources at runtime
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/lib/libvisiontransfer.so
+add_custom_target(visiontransfer_stub ALL
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-1_0-src.tar.xz
     COMMAND ${CMAKE_COMMAND} .
     COMMAND make
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src
-)
-
-add_custom_target(visiontransfer_stub ALL
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/lib/libvisiontransfer.so
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/bin/spcom
@@ -61,12 +71,14 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/lib)
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/libvisiontransfer
-    ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/spcom/helpers)
+    ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/spcom/helpers
+    ${Boost_INCLUDE_DIRS} ${SDL_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
 
 # Declare a C++ executable
 add_executable(nerian_sp1_node
     src/nerian_sp1_node.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/spcom/helpers/colorcoder.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-1_0-src/spcom/helpers/sdlwindow.cpp
 )
 
 # Add cmake target dependencies of the executable
@@ -75,10 +87,8 @@ add_dependencies(nerian_sp1_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
     visiontransfer_stub)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(nerian_sp1_node
-  ${catkin_LIBRARIES}
-  visiontransfer
-)
+target_link_libraries(nerian_sp1_node ${catkin_LIBRARIES} ${Boost_LIBRARIES}
+  ${SDL_LIBRARY} ${OpenCV_LIBS} visiontransfer)
 
 #############
 ## Install ##
