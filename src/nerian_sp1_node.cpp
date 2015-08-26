@@ -32,13 +32,18 @@ using namespace std;
  * \brief A simple node that receives data from the SP1 stereo vision system
  * and forwards it to ROS.
  *
- * The node can output the following messages
+ * The [SP1 stereo vision system](http://nerian.com/products/sp1-stereo-vision/)
+ * is a stand-alone device for real-time stereo matching. It transmits its
+ * processing results through gigagibt ethernet, which are then received by
+ * this node. The node converts the received data into ROS messages, which
+ * contain the following data:
  *
  * - Point cloud of reconstructed 3D locations
  * - Disparity map with optional color coding
  * - Rectified left camera image
  *
- * For configuration please see the provided example launch file.
+ * In addition, camera calibration information are also published. For
+ * configuration parameters, please see the provided example launch file.
  */
 
 class Sp1Node {

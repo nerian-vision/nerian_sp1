@@ -43,7 +43,13 @@ catkin_package(
 #######################
 
 # Extract sources while configuring
-execute_process(COMMAND tar --keep-newer-files -xvJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-1_0-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR})
+execute_process(COMMAND tar --keep-newer-files --warning none -xJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-1_0-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR})
+
+# Re-extract source files if updated
+add_custom_target(untar_src ALL
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-1_0-src.tar.xz
+    COMMAND tar --keep-newer-files --warning none -xJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-1_0-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # Build sources at runtime
 add_custom_target(visiontransfer_stub ALL
