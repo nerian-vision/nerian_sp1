@@ -108,9 +108,9 @@ public:
 
         // Create publishers
         disparityPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
-            "/nerian_sp1/disparity_map", 10)));
+            "/nerian_sp1/disparity_map", 5)));
         imagePublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
-            "/nerian_sp1/left_image", 10)));
+            "/nerian_sp1/left_image", 5)));
 
         if(calibFile == "" ) {
             ROS_WARN("No camera calibration file configured. Point cloud and camera information publishing is disabled!");
@@ -121,6 +121,8 @@ public:
 
             cameraInfoPublisher.reset(new ros::Publisher(nh.advertise<nerian_sp1::StereoCameraInfo>(
                 "/nerian_sp1/stereo_camera_info", 1)));
+            cloudPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(
+                "/nerian_sp1/point_cloud", 5)));
 
             // For point cloud publishing we have to do more initializations
             initPointCloud(privateNh);
@@ -132,7 +134,7 @@ public:
      */
     int run() {
         ros::Time stamp = ros::Time::now();
-        ros::Time lastLogTime = ros::Time::now();
+        ros::Time lastLogTime;
         int lastLogFrames = 0;
 
         int leftWidth, leftHeight, leftStride;
@@ -188,16 +190,18 @@ public:
                         leftData, dispData, stamp);
                 }
 
-                if(cameraInfoPublisher->getNumSubscribers() > 0) {
+                if(cameraInfoPublisher != NULL && cameraInfoPublisher->getNumSubscribers() > 0) {
                     publishCameraInfo(stamp);
                 }
 
                 // Display some simple statistics
                 frameNum++;
                 if(stamp.sec != lastLogTime.sec) {
-                    double dt = (stamp - lastLogTime).toSec();
-                    double fps = (frameNum - lastLogFrames) / dt;
-                    ROS_INFO("%.1f fps", fps);
+                    if(lastLogTime != ros::Time()) {
+                        double dt = (stamp - lastLogTime).toSec();
+                        double fps = (frameNum - lastLogFrames) / dt;
+                        ROS_INFO("%.1f fps", fps);
+                    }
                     lastLogFrames = frameNum;
                     lastLogTime = stamp;
                 }
@@ -375,9 +379,6 @@ private:
      * publishing
      */
     void initPointCloud(ros::NodeHandle& privateNh) {
-        cloudPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(
-            "/nerian_sp1/point_cloud", 10)));
-
         // Read disparity-to-depth mapping matrix from calibration data
         std::vector<float> qMatrix;
         calibStorage["Q"] >> qMatrix;
