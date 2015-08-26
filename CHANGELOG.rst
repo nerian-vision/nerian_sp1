@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.0 (2015-08-26)
+------------------
 * Cleaned-up example launch file
 * Minor bugfixes
 * Updated SP1 software package
