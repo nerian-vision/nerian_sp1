@@ -42,7 +42,7 @@ catkin_package(
 ## libvisiontransfer ##
 #######################
 
-set(VT_VERSION 1_0_1)
+set(VT_VERSION 1_0_2)
 
 # Extract sources while configuring
 execute_process(COMMAND tar --keep-newer-files --warning none -xJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR})
@@ -75,6 +75,8 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib)
 ###########
 ## Build ##
 ###########
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
@@ -113,5 +115,5 @@ install(TARGETS nerian_sp1_node
 )
 
 install(FILES data/calib.yaml
-	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/data
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/data
 )
