@@ -5,6 +5,7 @@ Changelog for package nerian_sp1
 1.1.1 (2015-09-15)
 ------------------
 * Updated to libvisiontransfer 1.0.2
+* Installing libvisiontransfer headers
 * Contributors: Konstantin Schauwecker
 
 1.1.0 (2015-08-26)

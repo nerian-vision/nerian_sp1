@@ -70,6 +70,12 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib/lib
     DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/visiontransfer
+	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+	FILES_MATCHING PATTERN "*.h"
+	PATTERN "CMakeFiles" EXCLUDE
+)
+
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib)
 
 ###########
