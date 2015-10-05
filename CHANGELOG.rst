@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.2 (2015-10-05)
+------------------
 * Fixed bug that prevented conversion of point cloud message to PCL object
 * Contributors: Konstantin Schauwecker
 
