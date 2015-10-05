@@ -337,14 +337,6 @@ private:
             pointCloudMsg->point_step = 4*sizeof(float);
             pointCloudMsg->row_step = width * pointCloudMsg->point_step;
             pointCloudMsg->is_dense = false;
-
-            pointCloudMsg->fields[0].count = width * height;
-            pointCloudMsg->fields[1].count = width * height;
-            pointCloudMsg->fields[2].count = width * height;
-
-            if(intensityChannel) {
-                pointCloudMsg->fields[3].count = width * height;
-            }
         }
 
         memcpy(&pointCloudMsg->data[0], pointMap, width*height*4*sizeof(float));
@@ -417,18 +409,21 @@ private:
         fieldX.name ="x";
         fieldX.offset = 0;
         fieldX.datatype = sensor_msgs::PointField::FLOAT32;
+        fieldX.count = 1;
         pointCloudMsg->fields.push_back(fieldX);
 
         sensor_msgs::PointField fieldY;
         fieldY.name ="y";
         fieldY.offset = sizeof(float);
         fieldY.datatype = sensor_msgs::PointField::FLOAT32;
+        fieldY.count = 1;
         pointCloudMsg->fields.push_back(fieldY);
 
         sensor_msgs::PointField fieldZ;
         fieldZ.name ="z";
         fieldZ.offset = 2*sizeof(float);
         fieldZ.datatype = sensor_msgs::PointField::FLOAT32;
+        fieldZ.count = 1;
         pointCloudMsg->fields.push_back(fieldZ);
 
         if(intensityChannel) {
@@ -436,6 +431,7 @@ private:
             fieldI.name ="intensity";
             fieldI.offset = 3*sizeof(float);
             fieldI.datatype = sensor_msgs::PointField::UINT8;
+            fieldI.count = 1;
             pointCloudMsg->fields.push_back(fieldI);
         }
     }
