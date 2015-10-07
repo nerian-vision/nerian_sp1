@@ -43,40 +43,49 @@ catkin_package(
 #######################
 
 set(VT_VERSION 1_0_2)
+#set(BUILD_VT 1)
 
-# Extract sources while configuring
-execute_process(COMMAND tar --keep-newer-files --warning none -xJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR})
+if(BUILD_VT)
+    # Extract sources while configuring
+    execute_process(COMMAND tar --keep-newer-files --warning none -xJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR})
 
-# Re-extract source files if updated
-add_custom_target(untar_src ALL
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz
-    COMMAND tar --keep-newer-files --warning none -xJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR}
-)
+    # Re-extract source files if updated
+    add_custom_target(untar_src ALL
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz
+        COMMAND tar --keep-newer-files --warning none -xJf ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz -C ${CMAKE_CURRENT_BINARY_DIR}
+    )
 
-# Build sources at runtime
-add_custom_target(visiontransfer_stub ALL
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz
-    COMMAND ${CMAKE_COMMAND} .
-    COMMAND make
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src
-)
+    # Build sources at runtime
+    add_custom_target(visiontransfer_stub ALL
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz
+        COMMAND ${CMAKE_COMMAND} .
+        COMMAND make
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src
+    )
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/bin/spcom
-    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-    PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/bin/spcom
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+    )
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib/libvisiontransfer.so
-    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib/libvisiontransfer.so
+        DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    )
 
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/visiontransfer
-	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-	FILES_MATCHING PATTERN "*.h"
-	PATTERN "CMakeFiles" EXCLUDE
-)
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/visiontransfer
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+        FILES_MATCHING PATTERN "*.h"
+        PATTERN "CMakeFiles" EXCLUDE
+    )
 
-link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib)
+    link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib)
+
+else()
+
+    # Development settings: Use local libvisiontransfer
+    link_directories($ENV{VISION_TRANSFER_LIB})
+    include_directories($ENV{VISION_TRANSFER_INCLUDE})
+endif()
 
 ###########
 ## Build ##

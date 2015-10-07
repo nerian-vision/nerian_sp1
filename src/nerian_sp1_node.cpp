@@ -114,20 +114,17 @@ public:
             "/nerian_sp1/left_image", 5)));
 
         if(calibFile == "" ) {
-            ROS_WARN("No camera calibration file configured. Point cloud and camera information publishing is disabled!");
+            ROS_WARN("No camera calibration file configured. Cannot publish detailed camera information!");
         } else {
              if (!calibStorage.open(calibFile, cv::FileStorage::READ)) {
                 throw std::runtime_error("Error reading calibration file: " + calibFile);
             }
-
-            cameraInfoPublisher.reset(new ros::Publisher(nh.advertise<nerian_sp1::StereoCameraInfo>(
-                "/nerian_sp1/stereo_camera_info", 1)));
-            cloudPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(
-                "/nerian_sp1/point_cloud", 5)));
-
-            // For point cloud publishing we have to do more initializations
-            initPointCloud(privateNh);
         }
+
+        cameraInfoPublisher.reset(new ros::Publisher(nh.advertise<nerian_sp1::StereoCameraInfo>(
+            "/nerian_sp1/stereo_camera_info", 1)));
+        cloudPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(
+            "/nerian_sp1/point_cloud", 5)));
     }
 
     /**
@@ -186,13 +183,18 @@ public:
                     publishDispMapMsg(dispWidth, dispHeight, dispStride, dispData, stamp);
                 }
 
-                if(cloudPublisher != NULL && cloudPublisher->getNumSubscribers() > 0) {
+                if(cloudPublisher->getNumSubscribers() > 0) {
+                    if(recon3d == nullptr) {
+                        // First initialize
+                        initPointCloud(asyncTransfer.getQMatrix());
+                    }
+
                     publishPointCloudMsg(dispWidth, dispHeight, leftStride, dispStride,
                         leftData, dispData, stamp);
                 }
 
                 if(cameraInfoPublisher != NULL && cameraInfoPublisher->getNumSubscribers() > 0) {
-                    publishCameraInfo(stamp);
+                    publishCameraInfo(stamp, asyncTransfer.getQMatrix());
                 }
 
                 // Display some simple statistics
@@ -371,31 +373,38 @@ private:
      * \brief Performs all neccessary initializations for point cloud+
      * publishing
      */
-    void initPointCloud(ros::NodeHandle& privateNh) {
-        // Read disparity-to-depth mapping matrix from calibration data
-        std::vector<float> qMatrix;
-        calibStorage["Q"] >> qMatrix;
-        if(qMatrix.size() != 16) {
-            throw std::runtime_error("Q matrix has invalid size!");
+    void initPointCloud(const float* networkQMatrix) {
+        ros::NodeHandle privateNh("~");
+        const float* qMatrix = networkQMatrix;
+
+        std::vector<float> configQMatrix;
+        if(networkQMatrix[0] == 0.0 && calibFile != "") {
+            // Network q-matrix is not valid!
+            // Read matrix from calibration data
+            calibStorage["Q"] >> configQMatrix;
+            if(configQMatrix.size() != 16) {
+                throw std::runtime_error("Q matrix has invalid size!");
+            }
+            qMatrix = &configQMatrix[0];
         }
 
+        float qSwapped[16];
         if(rosCoordinateSystem) {
             // Transform Q matrix to match the ROS coordinate system:
             // Swap y/z axis, then swap x/y axis, then invert y and z axis.
-            std::vector<float> qNew(16);
-            qNew[0] = qMatrix[8];   qNew[1] = qMatrix[9];
-            qNew[2] = qMatrix[10];  qNew[3] = qMatrix[11];
+            qSwapped[0] = qMatrix[8];   qSwapped[1] = qMatrix[9];
+            qSwapped[2] = qMatrix[10];  qSwapped[3] = qMatrix[11];
 
-            qNew[4] = -qMatrix[0];  qNew[5] = -qMatrix[1];
-            qNew[6] = -qMatrix[2];  qNew[7] = -qMatrix[3];
+            qSwapped[4] = -qMatrix[0];  qSwapped[5] = -qMatrix[1];
+            qSwapped[6] = -qMatrix[2];  qSwapped[7] = -qMatrix[3];
 
-            qNew[8] = -qMatrix[4];  qNew[9] = -qMatrix[5];
-            qNew[10] = -qMatrix[6]; qNew[11] = -qMatrix[7];
+            qSwapped[8] = -qMatrix[4];  qSwapped[9] = -qMatrix[5];
+            qSwapped[10] = -qMatrix[6]; qSwapped[11] = -qMatrix[7];
 
-            qNew[12] = qMatrix[12]; qNew[13] = qMatrix[13];
-            qNew[14] = qMatrix[14]; qNew[15] = qMatrix[15];
+            qSwapped[12] = qMatrix[12]; qSwapped[13] = qMatrix[13];
+            qSwapped[14] = qMatrix[14]; qSwapped[15] = qMatrix[15];
 
-            qMatrix = qNew;
+            qMatrix = qSwapped;
         }
 
         // Initialize 3D reconstruction class
@@ -439,7 +448,7 @@ private:
     /**
      * \brief Publishes the camera info once per second
      */
-    void publishCameraInfo(ros::Time stamp) {
+    void publishCameraInfo(ros::Time stamp, const float* qMatrix) {
         if(camInfoMsg == NULL) {
             // Initialize the camera info structure
             camInfoMsg.reset(new nerian_sp1::StereoCameraInfo);
@@ -447,51 +456,60 @@ private:
             camInfoMsg->header.frame_id = frame;
             camInfoMsg->header.seq = 0;
 
-            std::vector<int> sizeVec;
-            calibStorage["size"] >> sizeVec;
-            if(sizeVec.size() != 2) {
-                std::runtime_error("Calibration file format error!");
+            if(calibFile != "") {
+                std::vector<int> sizeVec;
+                calibStorage["size"] >> sizeVec;
+                if(sizeVec.size() != 2) {
+                    std::runtime_error("Calibration file format error!");
+                }
+
+                camInfoMsg->left_info.header = camInfoMsg->header;
+                camInfoMsg->left_info.width = sizeVec[0];
+                camInfoMsg->left_info.height = sizeVec[1];
+                camInfoMsg->left_info.distortion_model = "plumb_bob";
+                calibStorage["D1"] >> camInfoMsg->left_info.D;
+                readCalibrationArray("M1", camInfoMsg->left_info.K);
+                readCalibrationArray("R1", camInfoMsg->left_info.R);
+                readCalibrationArray("P1", camInfoMsg->left_info.P);
+                camInfoMsg->left_info.binning_x = 1;
+                camInfoMsg->left_info.binning_y = 1;
+                camInfoMsg->left_info.roi.do_rectify = false;
+                camInfoMsg->left_info.roi.height = 0;
+                camInfoMsg->left_info.roi.width = 0;
+                camInfoMsg->left_info.roi.x_offset = 0;
+                camInfoMsg->left_info.roi.y_offset = 0;
+
+                camInfoMsg->right_info.header = camInfoMsg->header;
+                camInfoMsg->right_info.width = sizeVec[0];
+                camInfoMsg->right_info.height = sizeVec[1];
+                camInfoMsg->right_info.distortion_model = "plumb_bob";
+                calibStorage["D2"] >> camInfoMsg->right_info.D;
+                readCalibrationArray("M2", camInfoMsg->right_info.K);
+                readCalibrationArray("R2", camInfoMsg->right_info.R);
+                readCalibrationArray("P2", camInfoMsg->right_info.P);
+                camInfoMsg->right_info.binning_x = 1;
+                camInfoMsg->right_info.binning_y = 1;
+                camInfoMsg->right_info.roi.do_rectify = false;
+                camInfoMsg->right_info.roi.height = 0;
+                camInfoMsg->right_info.roi.width = 0;
+                camInfoMsg->right_info.roi.x_offset = 0;
+                camInfoMsg->right_info.roi.y_offset = 0;
+
+                readCalibrationArray("Q", camInfoMsg->Q);
+                readCalibrationArray("T", camInfoMsg->T_left_right);
+                readCalibrationArray("R", camInfoMsg->R_left_right);
             }
-
-            camInfoMsg->left_info.header = camInfoMsg->header;
-            camInfoMsg->left_info.width = sizeVec[0];
-            camInfoMsg->left_info.height = sizeVec[1];
-            camInfoMsg->left_info.distortion_model = "plumb_bob";
-            calibStorage["D1"] >> camInfoMsg->left_info.D;
-            readCalibrationArray("M1", camInfoMsg->left_info.K);
-            readCalibrationArray("R1", camInfoMsg->left_info.R);
-            readCalibrationArray("P1", camInfoMsg->left_info.P);
-            camInfoMsg->left_info.binning_x = 1;
-            camInfoMsg->left_info.binning_y = 1;
-            camInfoMsg->left_info.roi.do_rectify = false;
-            camInfoMsg->left_info.roi.height = 0;
-            camInfoMsg->left_info.roi.width = 0;
-            camInfoMsg->left_info.roi.x_offset = 0;
-            camInfoMsg->left_info.roi.y_offset = 0;
-
-            camInfoMsg->right_info.header = camInfoMsg->header;
-            camInfoMsg->right_info.width = sizeVec[0];
-            camInfoMsg->right_info.height = sizeVec[1];
-            camInfoMsg->right_info.distortion_model = "plumb_bob";
-            calibStorage["D2"] >> camInfoMsg->right_info.D;
-            readCalibrationArray("M2", camInfoMsg->right_info.K);
-            readCalibrationArray("R2", camInfoMsg->right_info.R);
-            readCalibrationArray("P2", camInfoMsg->right_info.P);
-            camInfoMsg->right_info.binning_x = 1;
-            camInfoMsg->right_info.binning_y = 1;
-            camInfoMsg->right_info.roi.do_rectify = false;
-            camInfoMsg->right_info.roi.height = 0;
-            camInfoMsg->right_info.roi.width = 0;
-            camInfoMsg->right_info.roi.x_offset = 0;
-            camInfoMsg->right_info.roi.y_offset = 0;
-
-            readCalibrationArray("Q", camInfoMsg->Q);
-            readCalibrationArray("T", camInfoMsg->T_left_right);
-            readCalibrationArray("R", camInfoMsg->R_left_right);
         }
 
         double dt = (stamp - lastCamInfoPublish).toSec();
         if(dt > 1.0) {
+            // Rather use the Q-matrix that we received over the network if it is valid
+            if(qMatrix[0] != 0.0) {
+                for(int i=0; i<16; i++) {
+                    camInfoMsg->Q[i] = static_cast<double>(qMatrix[i]);
+                }
+            }
+
             // Publish once per second
             camInfoMsg->header.stamp = stamp;
             camInfoMsg->left_info.header.stamp = stamp;

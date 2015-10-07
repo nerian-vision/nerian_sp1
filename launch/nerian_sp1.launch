@@ -1,5 +1,5 @@
 <launch>
-    <!-- <arg name="launchPrefix" value="gdb -ex run \-\-args" /> -->
+    <!-- <arg name="launchPrefix" value="gdb -ex 'catch throw' -ex run \-\-args" /> -->
     <arg name="launchPrefix" value="" />
 
     <node pkg="nerian_sp1" type="nerian_sp1_node" name="nerian_sp1_node" output="screen" launch-prefix="$(arg launchPrefix)">
@@ -14,7 +14,7 @@
         <param name="host" type="string" value="0.0.0.0" />
         <param name="port" type="string" value="7681" />
 
-        <param name="calibration_file" type="string" value="$(find nerian_sp1)/data/calib.yaml" />
+        <!-- <param name="calibration_file" type="string" value="$(find nerian_sp1)/data/calib.yaml" /> -->
         <param name="frame" type="string" value="map" />
     </node>
 </launch>
