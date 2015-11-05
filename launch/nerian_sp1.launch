@@ -1,5 +1,6 @@
 <launch>
     <!-- <arg name="launchPrefix" value="gdb -ex 'catch throw' -ex run \-\-args" /> -->
+    <!-- <arg name="launchPrefix" value="valgrind" /> -->
     <arg name="launchPrefix" value="" />
 
     <node pkg="nerian_sp1" type="nerian_sp1_node" name="nerian_sp1_node" output="screen" launch-prefix="$(arg launchPrefix)">
@@ -11,8 +12,12 @@
         <param name="disparity_window" type="bool" value="false" />
 
         <param name="use_tcp" type="bool" value="false" />
-        <param name="host" type="string" value="0.0.0.0" />
-        <param name="port" type="string" value="7681" />
+
+        <param name="remote_host" type="string" value="0.0.0.0" />
+        <param name="remote_port" type="string" value="7681" />
+
+        <param name="local_host" type="string" value="0.0.0.0" />
+        <param name="local_port" type="string" value="7681" />
 
         <!-- <param name="calibration_file" type="string" value="$(find nerian_sp1)/data/calib.yaml" /> -->
         <param name="frame" type="string" value="map" />

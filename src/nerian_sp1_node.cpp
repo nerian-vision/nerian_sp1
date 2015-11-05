@@ -49,7 +49,7 @@ using namespace std;
 
 class Sp1Node {
 public:
-    Sp1Node() {
+    Sp1Node(): frameNum(0), replaceQMatrix(false) {
     }
 
     ~Sp1Node() {
@@ -78,16 +78,24 @@ public:
             frame = "world";
         }
 
-        if (!privateNh.getParam("port", port)) {
-            port = "7681";
+        if (!privateNh.getParam("remote_port", remotePort)) {
+            remotePort = "7681";
+        }
+
+        if (!privateNh.getParam("remote_host", remoteHost)) {
+            remoteHost = "0.0.0.0";
+        }
+
+        if (!privateNh.getParam("local_port", localPort)) {
+            localPort = "7681";
+        }
+
+        if (!privateNh.getParam("local_host", localHost)) {
+            localHost = "0.0.0.0";
         }
 
         if (!privateNh.getParam("use_tcp", useTcp)) {
             useTcp = false;
-        }
-
-        if (!privateNh.getParam("host", host)) {
-            host = "";
         }
 
         if (!privateNh.getParam("ros_coordinate_system", rosCoordinateSystem)) {
@@ -135,82 +143,48 @@ public:
         ros::Time lastLogTime;
         int lastLogFrames = 0;
 
-        int leftWidth, leftHeight, leftStride;
-        unsigned char* leftData = NULL;
-
-        int dispWidth, dispHeight, dispStride;
-        unsigned char* dispData = NULL;
-
-
-        AsyncTransfer asyncTransfer(useTcp ? ImageTransfer::TCP_CLIENT : ImageTransfer::UDP_CLIENT,
-            host.c_str(), port.c_str());
+        AsyncTransfer asyncTransfer(useTcp ? ImageTransfer::TCP_CLIENT : ImageTransfer::UDP,
+            remoteHost.c_str(), remotePort.c_str(), localHost.c_str(), localPort.c_str());
 
         while(ros::ok()) {
-            int imageNum, width, height, stride;
-            ImageProtocol::ImageFormat format;
-            unsigned char* data = NULL;
-
             // Receive image data
-            data = asyncTransfer.collectReceivedImage(imageNum, width, height, stride, format, 0.5);
-
-            // Find out which image this was
-            if(data != NULL && imageNum == 0) {
-                stamp = ros::Time::now();
-                leftWidth = width;
-                leftHeight = height;
-                leftStride = stride;
-                leftData = data;
-            } else if(data != NULL && imageNum == 1) {
-                dispWidth = width;
-                dispHeight = height;
-                dispStride = stride;
-                dispData = data;
+            ImagePair imagePair;
+            if(!asyncTransfer.collectReceivedImagePair(imagePair, 0.5)) {
+                continue;
             }
 
-            if(leftData != NULL && dispData != NULL) {
-                // We have received the disparity map and the left camera image
+            // Publish the selected messages
+            if(imagePublisher->getNumSubscribers() > 0) {
+                publishImageMsg(imagePair, stamp);
+            }
 
-                if(leftWidth != dispWidth || leftHeight != dispHeight) {
-                    throw std::runtime_error("Invalid image sizes!");
+            if(disparityPublisher->getNumSubscribers() > 0 || window != NULL) {
+                publishDispMapMsg(imagePair, stamp);
+            }
+
+            if(cloudPublisher->getNumSubscribers() > 0) {
+                if(recon3d == nullptr) {
+                    // First initialize
+                    initPointCloud(imagePair.getQMatrix());
                 }
 
-                // Publish the selected messages
-                if(imagePublisher->getNumSubscribers() > 0) {
-                    publishImageMsg(leftWidth, leftHeight, leftStride, leftData, stamp);
+                publishPointCloudMsg(imagePair, stamp);
+            }
+
+            if(cameraInfoPublisher != NULL && cameraInfoPublisher->getNumSubscribers() > 0) {
+                publishCameraInfo(stamp, imagePair.getQMatrix());
+            }
+
+            // Display some simple statistics
+            frameNum++;
+            if(stamp.sec != lastLogTime.sec) {
+                if(lastLogTime != ros::Time()) {
+                    double dt = (stamp - lastLogTime).toSec();
+                    double fps = (frameNum - lastLogFrames) / dt;
+                    ROS_INFO("%.1f fps", fps);
                 }
-
-                if(disparityPublisher->getNumSubscribers() > 0 || window != NULL) {
-                    publishDispMapMsg(dispWidth, dispHeight, dispStride, dispData, stamp);
-                }
-
-                if(cloudPublisher->getNumSubscribers() > 0) {
-                    if(recon3d == nullptr) {
-                        // First initialize
-                        initPointCloud(asyncTransfer.getQMatrix());
-                    }
-
-                    publishPointCloudMsg(dispWidth, dispHeight, leftStride, dispStride,
-                        leftData, dispData, stamp);
-                }
-
-                if(cameraInfoPublisher != NULL && cameraInfoPublisher->getNumSubscribers() > 0) {
-                    publishCameraInfo(stamp, asyncTransfer.getQMatrix());
-                }
-
-                // Display some simple statistics
-                frameNum++;
-                if(stamp.sec != lastLogTime.sec) {
-                    if(lastLogTime != ros::Time()) {
-                        double dt = (stamp - lastLogTime).toSec();
-                        double fps = (frameNum - lastLogFrames) / dt;
-                        ROS_INFO("%.1f fps", fps);
-                    }
-                    lastLogFrames = frameNum;
-                    lastLogTime = stamp;
-                }
-
-                leftData = NULL;
-                dispData = NULL;
+                lastLogFrames = frameNum;
+                lastLogTime = stamp;
             }
         }
     }
@@ -229,9 +203,11 @@ private:
     bool colorCodeDispMap;
     bool colorCodeLegend;
     bool rosCoordinateSystem;
-    std::string port;
+    std::string remotePort;
+    std::string localPort;
     std::string frame;
-    std::string host;
+    std::string remoteHost;
+    std::string localHost;
     std::string calibFile;
     bool dispWindow;
 
@@ -245,18 +221,20 @@ private:
     nerian_sp1::StereoCameraInfoPtr camInfoMsg;
     ros::Time lastCamInfoPublish;
     boost::scoped_ptr<SDLWindow> window;
+    float qMatrix[16];
+    bool replaceQMatrix;
 
     /**
      * \brief Publishes a rectified left camera image
      */
-    void publishImageMsg(int width, int height, int stride, unsigned char* data,
-            ros::Time stamp) {
+    void publishImageMsg(const ImagePair& imagePair, ros::Time stamp) {
         cv_bridge::CvImage cvImg;
         cvImg.header.frame_id = frame;
         cvImg.header.stamp = stamp;
         cvImg.header.seq = frameNum;
 
-        cvImg.image = cv::Mat_<unsigned char>(height, width, data, stride);
+        cvImg.image = cv::Mat_<unsigned char>(imagePair.getHeight(),
+            imagePair.getWidth(), imagePair.getPixelData(0), imagePair.getRowStride(0));
         sensor_msgs::ImagePtr msg = cvImg.toImageMsg();
         msg->encoding = "mono8";
         imagePublisher->publish(msg);
@@ -266,15 +244,15 @@ private:
      * \brief Publishes the disparity map as 16-bit grayscale image or color coded
      * RGB image
      */
-    void publishDispMapMsg(int width, int height, int stride, unsigned char* data,
-            ros::Time stamp) {
+    void publishDispMapMsg(const ImagePair& imagePair, ros::Time stamp) {
         cv_bridge::CvImage cvImg;
         cvImg.header.frame_id = frame;
         cvImg.header.stamp = stamp;
         cvImg.header.seq = frameNum;
 
-        cv::Mat_<unsigned short> monoImg(height, width,
-            reinterpret_cast<unsigned short*>(data), stride);
+        cv::Mat_<unsigned short> monoImg(imagePair.getHeight(), imagePair.getWidth(),
+            reinterpret_cast<unsigned short*>(imagePair.getPixelData(1)),
+            imagePair.getRowStride(1));
         string encoding = "";
 
         if(!colorCodeDispMap) {
@@ -285,13 +263,13 @@ private:
                 colCoder.reset(new ColorCoder(0, 16*111, true, true));
                 if(colorCodeLegend) {
                     // Create the legend
-                    colDispMap = colCoder->createLegendBorder(width, height, 1.0/16.0);
+                    colDispMap = colCoder->createLegendBorder(monoImg.cols, monoImg.rows, 1.0/16.0);
                 } else {
-                    colDispMap = cv::Mat_<cv::Vec3b>(height, width);
+                    colDispMap = cv::Mat_<cv::Vec3b>(monoImg.rows, monoImg.cols);
                 }
             }
 
-            cv::Mat_<cv::Vec3b> dispSection = colDispMap(cv::Rect(0, 0, width, height));
+            cv::Mat_<cv::Vec3b> dispSection = colDispMap(cv::Rect(0, 0, monoImg.cols, monoImg.rows));
             colCoder->codeImage(monoImg, dispSection);
             cvImg.image = colDispMap;
             encoding = "bgr8";
@@ -316,11 +294,13 @@ private:
      * \brief Reconstructs the 3D locations form the disparity map and publishes them
      * as point cloud.
      */
-    void publishPointCloudMsg(int width, int height, int leftStride, int dispStride,
-            unsigned char* leftData, unsigned char* dispData, ros::Time stamp) {
+    void publishPointCloudMsg(ImagePair& imagePair, ros::Time stamp) {
+        if(replaceQMatrix) {
+            imagePair.setQMatrix(qMatrix);
+        }
+
         // Get 3D points
-        float* pointMap = recon3d->createPointMap(reinterpret_cast<unsigned short*>(dispData),
-            width, height, dispStride, 0);
+        float* pointMap = recon3d->createPointMap(imagePair, 0);
 
         // Create message object and set header
         pointCloudMsg->header.stamp = stamp;
@@ -328,30 +308,33 @@ private:
         pointCloudMsg->header.seq = frameNum;
 
         // Copy 3D points
-        if(pointCloudMsg->data.size() != width*height*4*sizeof(float)) {
+        if(pointCloudMsg->data.size() != imagePair.getWidth()*imagePair.getHeight()*4*sizeof(float)) {
             // Allocate buffer
-            pointCloudMsg->data.resize(width*height*4*sizeof(float));
+            pointCloudMsg->data.resize(imagePair.getWidth()*imagePair.getHeight()*4*sizeof(float));
 
             // Set basic data
-            pointCloudMsg->width = width;
-            pointCloudMsg->height = height;
+            pointCloudMsg->width = imagePair.getWidth();
+            pointCloudMsg->height = imagePair.getHeight();
             pointCloudMsg->is_bigendian = false;
             pointCloudMsg->point_step = 4*sizeof(float);
-            pointCloudMsg->row_step = width * pointCloudMsg->point_step;
+            pointCloudMsg->row_step = imagePair.getWidth() * pointCloudMsg->point_step;
             pointCloudMsg->is_dense = false;
         }
 
-        memcpy(&pointCloudMsg->data[0], pointMap, width*height*4*sizeof(float));
+        memcpy(&pointCloudMsg->data[0], pointMap,
+            imagePair.getWidth()*imagePair.getHeight()*4*sizeof(float));
 
         // Copy intensity values
         if(intensityChannel) {
             // Get pointers to the beginnig and end of the point cloud
             unsigned char* cloudStart = &pointCloudMsg->data[0];
-            unsigned char* cloudEnd = &pointCloudMsg->data[0] + width*height*4*sizeof(float);
+            unsigned char* cloudEnd = &pointCloudMsg->data[0]
+                + imagePair.getWidth()*imagePair.getHeight()*4*sizeof(float);
 
             // Get pointer to the current pixel and end of current row
-            unsigned char* imagePtr = &leftData[0];
-            unsigned char* rowEndPtr = imagePtr + width;
+            unsigned char* imagePtr = imagePair.getPixelData(0);
+            unsigned char* rowEndPtr = imagePtr + imagePair.getWidth();
+            int rowIncrement = imagePair.getRowStride(0) - imagePair.getWidth();
 
             for(unsigned char* cloudPtr = cloudStart + 3*sizeof(float);
                     cloudPtr < cloudEnd; cloudPtr+= 4*sizeof(float)) {
@@ -360,8 +343,8 @@ private:
                 imagePtr++;
                 if(imagePtr == rowEndPtr) {
                     // Progress to next row
-                    imagePtr += (leftStride - width);
-                    rowEndPtr = imagePtr + width;
+                    imagePtr += rowIncrement;
+                    rowEndPtr = imagePtr + imagePair.getWidth();
                 }
             }
         }
@@ -375,7 +358,6 @@ private:
      */
     void initPointCloud(const float* networkQMatrix) {
         ros::NodeHandle privateNh("~");
-        const float* qMatrix = networkQMatrix;
 
         std::vector<float> configQMatrix;
         if(networkQMatrix[0] == 0.0 && calibFile != "") {
@@ -385,7 +367,11 @@ private:
             if(configQMatrix.size() != 16) {
                 throw std::runtime_error("Q matrix has invalid size!");
             }
-            qMatrix = &configQMatrix[0];
+
+            memcpy(qMatrix, &configQMatrix[0], sizeof(qMatrix));
+            replaceQMatrix = true;
+        } else {
+            memcpy(qMatrix, networkQMatrix, sizeof(qMatrix));
         }
 
         float qSwapped[16];
@@ -404,11 +390,12 @@ private:
             qSwapped[12] = qMatrix[12]; qSwapped[13] = qMatrix[13];
             qSwapped[14] = qMatrix[14]; qSwapped[15] = qMatrix[15];
 
-            qMatrix = qSwapped;
+            memcpy(qMatrix, qSwapped, sizeof(qMatrix));
+            replaceQMatrix = true;
         }
 
         // Initialize 3D reconstruction class
-        recon3d.reset(new Reconstruct3D(&qMatrix[0]));
+        recon3d.reset(new Reconstruct3D);
 
         // Initialize message
         pointCloudMsg.reset(new sensor_msgs::PointCloud2);
