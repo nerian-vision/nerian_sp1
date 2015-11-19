@@ -42,8 +42,8 @@ catkin_package(
 ## libvisiontransfer ##
 #######################
 
-set(VT_VERSION 1_0_2)
-#set(BUILD_VT 1)
+set(VT_VERSION 2_0_0)
+set(BUILD_VT 1)
 
 if(BUILD_VT)
     # Extract sources while configuring

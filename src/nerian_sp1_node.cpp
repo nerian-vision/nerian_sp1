@@ -139,7 +139,6 @@ public:
      * \brief The main loop of this node
      */
     int run() {
-        ros::Time stamp = ros::Time::now();
         ros::Time lastLogTime;
         int lastLogFrames = 0;
 
@@ -152,6 +151,8 @@ public:
             if(!asyncTransfer.collectReceivedImagePair(imagePair, 0.5)) {
                 continue;
             }
+
+            ros::Time stamp = ros::Time::now();
 
             // Publish the selected messages
             if(imagePublisher->getNumSubscribers() > 0) {
@@ -172,7 +173,7 @@ public:
             }
 
             if(cameraInfoPublisher != NULL && cameraInfoPublisher->getNumSubscribers() > 0) {
-                publishCameraInfo(stamp, imagePair.getQMatrix());
+                publishCameraInfo(stamp, imagePair);
             }
 
             // Display some simple statistics
@@ -231,11 +232,13 @@ private:
         cv_bridge::CvImage cvImg;
         cvImg.header.frame_id = frame;
         cvImg.header.stamp = stamp;
-        cvImg.header.seq = frameNum;
+        cvImg.header.seq = imagePair.getSequenceNumber(); // Actually ROS will overwrite this
 
         cvImg.image = cv::Mat_<unsigned char>(imagePair.getHeight(),
             imagePair.getWidth(), imagePair.getPixelData(0), imagePair.getRowStride(0));
         sensor_msgs::ImagePtr msg = cvImg.toImageMsg();
+
+
         msg->encoding = "mono8";
         imagePublisher->publish(msg);
     }
@@ -248,7 +251,7 @@ private:
         cv_bridge::CvImage cvImg;
         cvImg.header.frame_id = frame;
         cvImg.header.stamp = stamp;
-        cvImg.header.seq = frameNum;
+        cvImg.header.seq = imagePair.getSequenceNumber(); // Actually ROS will overwrite this
 
         cv::Mat_<unsigned short> monoImg(imagePair.getHeight(), imagePair.getWidth(),
             reinterpret_cast<unsigned short*>(imagePair.getPixelData(1)),
@@ -305,7 +308,7 @@ private:
         // Create message object and set header
         pointCloudMsg->header.stamp = stamp;
         pointCloudMsg->header.frame_id = frame;
-        pointCloudMsg->header.seq = frameNum;
+        pointCloudMsg->header.seq = imagePair.getSequenceNumber(); // Actually ROS will overwrite this
 
         // Copy 3D points
         if(pointCloudMsg->data.size() != imagePair.getWidth()*imagePair.getHeight()*4*sizeof(float)) {
@@ -435,13 +438,13 @@ private:
     /**
      * \brief Publishes the camera info once per second
      */
-    void publishCameraInfo(ros::Time stamp, const float* qMatrix) {
+    void publishCameraInfo(ros::Time stamp, const ImagePair& imagePair) {
         if(camInfoMsg == NULL) {
             // Initialize the camera info structure
             camInfoMsg.reset(new nerian_sp1::StereoCameraInfo);
 
             camInfoMsg->header.frame_id = frame;
-            camInfoMsg->header.seq = 0;
+            camInfoMsg->header.seq = imagePair.getSequenceNumber(); // Actually ROS will overwrite this
 
             if(calibFile != "") {
                 std::vector<int> sizeVec;
@@ -491,6 +494,7 @@ private:
         double dt = (stamp - lastCamInfoPublish).toSec();
         if(dt > 1.0) {
             // Rather use the Q-matrix that we received over the network if it is valid
+            const float* qMatix = imagePair.getQMatrix();
             if(qMatrix[0] != 0.0) {
                 for(int i=0; i<16; i++) {
                     camInfoMsg->Q[i] = static_cast<double>(qMatrix[i]);
