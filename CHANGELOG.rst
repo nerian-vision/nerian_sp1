@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.2.0 (2015-11-23)
+------------------
 * Added current release candidate of libvisiontransfer 2.0.0
 * Adaptations for libvisiontransfer 2.0.0
 * Support transfer of Q matrix
