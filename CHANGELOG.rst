@@ -2,6 +2,13 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Added current release candidate of libvisiontransfer 2.0.0
+* Adaptations for libvisiontransfer 2.0.0
+* Support transfer of Q matrix
+* Contributors: Konstantin Schauwecker
+
 1.1.2 (2015-10-05)
 ------------------
 * Fixed bug that prevented conversion of point cloud message to PCL object
