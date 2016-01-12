@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.2.1 (2016-01-12)
+------------------
 * Upgraded libvisiontransfer to version 2.1.1
 * Contributors: Konstantin Schauwecker
 
