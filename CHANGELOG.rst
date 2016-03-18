@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.0 (2016-03-18)
+------------------
 * Updated sp1 software release to version 2.1.5
 * Support for changing q-matrix (caused by auto re-calibration)
 * Contributors: Konstantin Schauwecker
