@@ -49,7 +49,7 @@ using namespace std;
 
 class Sp1Node {
 public:
-    Sp1Node(): frameNum(0), replaceQMatrix(false) {
+    Sp1Node(): frameNum(0) {
     }
 
     ~Sp1Node() {
@@ -166,7 +166,7 @@ public:
             if(cloudPublisher->getNumSubscribers() > 0) {
                 if(recon3d == nullptr) {
                     // First initialize
-                    initPointCloud(imagePair.getQMatrix());
+                    initPointCloud();
                 }
 
                 publishPointCloudMsg(imagePair, stamp);
@@ -222,8 +222,6 @@ private:
     nerian_sp1::StereoCameraInfoPtr camInfoMsg;
     ros::Time lastCamInfoPublish;
     boost::scoped_ptr<SDLWindow> window;
-    float qMatrix[16];
-    bool replaceQMatrix;
 
     /**
      * \brief Publishes a rectified left camera image
@@ -294,12 +292,33 @@ private:
     }
 
     /**
+     * \brief Transform Q matrix to match the ROS coordinate system:
+     * Swap y/z axis, then swap x/y axis, then invert y and z axis.
+     */
+    void qMatrixToRosCoords(const float* src, float* dst) {
+        dst[0] = src[8];   dst[1] = src[9];
+        dst[2] = src[10];  dst[3] = src[11];
+
+        dst[4] = -src[0];  dst[5] = -src[1];
+        dst[6] = -src[2];  dst[7] = -src[3];
+
+        dst[8] = -src[4];  dst[9] = -src[5];
+        dst[10] = -src[6]; dst[11] = -src[7];
+
+        dst[12] = src[12]; dst[13] = src[13];
+        dst[14] = src[14]; dst[15] = src[15];
+    }
+
+    /**
      * \brief Reconstructs the 3D locations form the disparity map and publishes them
      * as point cloud.
      */
     void publishPointCloudMsg(ImagePair& imagePair, ros::Time stamp) {
-        if(replaceQMatrix) {
-            imagePair.setQMatrix(qMatrix);
+        // Transform Q-matrix if desired
+        float qRos[16];
+        if(rosCoordinateSystem) {
+            qMatrixToRosCoords(imagePair.getQMatrix(), qRos);
+            imagePair.setQMatrix(qRos);
         }
 
         // Get 3D points
@@ -359,43 +378,8 @@ private:
      * \brief Performs all neccessary initializations for point cloud+
      * publishing
      */
-    void initPointCloud(const float* networkQMatrix) {
+    void initPointCloud() {
         ros::NodeHandle privateNh("~");
-
-        std::vector<float> configQMatrix;
-        if(networkQMatrix[0] == 0.0 && calibFile != "") {
-            // Network q-matrix is not valid!
-            // Read matrix from calibration data
-            calibStorage["Q"] >> configQMatrix;
-            if(configQMatrix.size() != 16) {
-                throw std::runtime_error("Q matrix has invalid size!");
-            }
-
-            memcpy(qMatrix, &configQMatrix[0], sizeof(qMatrix));
-            replaceQMatrix = true;
-        } else {
-            memcpy(qMatrix, networkQMatrix, sizeof(qMatrix));
-        }
-
-        float qSwapped[16];
-        if(rosCoordinateSystem) {
-            // Transform Q matrix to match the ROS coordinate system:
-            // Swap y/z axis, then swap x/y axis, then invert y and z axis.
-            qSwapped[0] = qMatrix[8];   qSwapped[1] = qMatrix[9];
-            qSwapped[2] = qMatrix[10];  qSwapped[3] = qMatrix[11];
-
-            qSwapped[4] = -qMatrix[0];  qSwapped[5] = -qMatrix[1];
-            qSwapped[6] = -qMatrix[2];  qSwapped[7] = -qMatrix[3];
-
-            qSwapped[8] = -qMatrix[4];  qSwapped[9] = -qMatrix[5];
-            qSwapped[10] = -qMatrix[6]; qSwapped[11] = -qMatrix[7];
-
-            qSwapped[12] = qMatrix[12]; qSwapped[13] = qMatrix[13];
-            qSwapped[14] = qMatrix[14]; qSwapped[15] = qMatrix[15];
-
-            memcpy(qMatrix, qSwapped, sizeof(qMatrix));
-            replaceQMatrix = true;
-        }
 
         // Initialize 3D reconstruction class
         recon3d.reset(new Reconstruct3D);
@@ -494,7 +478,7 @@ private:
         double dt = (stamp - lastCamInfoPublish).toSec();
         if(dt > 1.0) {
             // Rather use the Q-matrix that we received over the network if it is valid
-            const float* qMatix = imagePair.getQMatrix();
+            const float* qMatrix = imagePair.getQMatrix();
             if(qMatrix[0] != 0.0) {
                 for(int i=0; i<16; i++) {
                     camInfoMsg->Q[i] = static_cast<double>(qMatrix[i]);
