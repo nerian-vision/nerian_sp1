@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.1 (2016-05-05)
+------------------
 * Added missing launch file to ROS package
 * Contributors: Konstantin Schauwecker
 
