@@ -132,3 +132,7 @@ install(TARGETS nerian_sp1_node
 install(FILES data/calib.yaml
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/data
 )
+
+install(FILES launch/nerian_sp1.launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
