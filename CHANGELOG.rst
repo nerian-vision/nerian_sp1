@@ -2,6 +2,11 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Build fix for ROS kinetic
+* Contributors: Konstantin Schauwecker
+
 1.3.1 (2016-05-05)
 ------------------
 * Added missing launch file to ROS package
