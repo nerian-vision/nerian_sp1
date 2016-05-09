@@ -34,7 +34,7 @@ generate_messages(DEPENDENCIES sensor_msgs)
 catkin_package(
 #  INCLUDE_DIRS ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   LIBRARIES visiontransfer
-  CATKIN_DEPENDS message_runtime sensor_msgs
+  CATKIN_DEPENDS roscpp message_runtime sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -97,7 +97,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 ## Your package locations should be listed before other locations
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer
     ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/spcom/helpers
-    ${Boost_INCLUDE_DIRS} ${SDL_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
+    ${Boost_INCLUDE_DIRS} ${SDL_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS})
 
 # Declare a C++ executable
 add_executable(nerian_sp1_node
