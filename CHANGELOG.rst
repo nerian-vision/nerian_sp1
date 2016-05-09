@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.2 (2016-05-09)
+------------------
 * Build fix for ROS kinetic
 * Contributors: Konstantin Schauwecker
 
