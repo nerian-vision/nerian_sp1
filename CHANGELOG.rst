@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.3 (2016-05-17)
+------------------
 * Updated SP1 software release to version 2.1.6
 * Contributors: Konstantin Schauwecker
 

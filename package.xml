@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>nerian_sp1</name>
-  <version>1.3.2</version>
+  <version>1.3.3</version>
   <description>Node for the SP1 Stereo Vision System by Nerian Vision Technologies</description>
   <maintainer email="konstantin.schauwecker@nerian.com">Konstantin Schauwecker</maintainer>
   <license>MIT</license>
