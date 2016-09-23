@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Nerian Vision Technologies
+ * Copyright (c) 2016 Nerian Vision Technologies
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,6 @@
 #include <nerian_sp1/StereoCameraInfo.h>
 #include <boost/smart_ptr.hpp>
 #include <colorcoder.h>
-#include <sdlwindow.h>
 
 using namespace std;
 
@@ -106,15 +105,6 @@ public:
             calibFile = "";
         }
 
-        if (!privateNh.getParam("disparity_window", dispWindow)) {
-            dispWindow = false;
-        }
-
-        // Create debugging window
-        if(dispWindow) {
-            window.reset(new SDLWindow(640, 480, "Disparity Map"));
-        }
-
         // Create publishers
         disparityPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
             "/nerian_sp1/disparity_map", 5)));
@@ -159,7 +149,7 @@ public:
                 publishImageMsg(imagePair, stamp);
             }
 
-            if(disparityPublisher->getNumSubscribers() > 0 || window != NULL) {
+            if(disparityPublisher->getNumSubscribers() > 0) {
                 publishDispMapMsg(imagePair, stamp);
             }
 
@@ -210,7 +200,6 @@ private:
     std::string remoteHost;
     std::string localHost;
     std::string calibFile;
-    bool dispWindow;
 
     // Other members
     int frameNum;
@@ -221,7 +210,6 @@ private:
     cv::FileStorage calibStorage;
     nerian_sp1::StereoCameraInfoPtr camInfoMsg;
     ros::Time lastCamInfoPublish;
-    boost::scoped_ptr<SDLWindow> window;
 
     /**
      * \brief Publishes a rectified left camera image
@@ -261,7 +249,7 @@ private:
             encoding = "mono16";
         } else {
             if(colCoder == NULL) {
-                colCoder.reset(new ColorCoder(0, 16*111, true, true));
+                colCoder.reset(new ColorCoder(ColorCoder::COLOR_RED_BLUE_BGR, 0, 16*111, true, true));
                 if(colorCodeLegend) {
                     // Create the legend
                     colDispMap = colCoder->createLegendBorder(monoImg.cols, monoImg.rows, 1.0/16.0);
@@ -280,14 +268,6 @@ private:
             sensor_msgs::ImagePtr msg = cvImg.toImageMsg();
             msg->encoding = encoding;
             disparityPublisher->publish(msg);
-        }
-
-        if(window != NULL) {
-            if(window->getSize() != cvImg.image.size()) {
-                window->resize(cvImg.image.size());
-            }
-            window->displayImage(cvImg.image);
-            window->processEvents(false);
         }
     }
 

@@ -9,7 +9,6 @@
 
         <param name="color_code_disparity_map" type="bool" value="false" />
         <param name="color_code_legend" type="bool" value="true" />
-        <param name="disparity_window" type="bool" value="false" />
 
         <param name="use_tcp" type="bool" value="false" />
 

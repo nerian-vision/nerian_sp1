@@ -10,7 +10,6 @@ find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs cv_bridge
 ## System dependencies are found with CMake's conventions
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
-find_package(SDL REQUIRED)
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -42,7 +41,7 @@ catkin_package(
 ## libvisiontransfer ##
 #######################
 
-set(VT_VERSION 2_1_6)
+set(VT_VERSION 2_2_0-beta1)
 set(BUILD_VT 1)
 
 if(BUILD_VT)
@@ -60,7 +59,7 @@ if(BUILD_VT)
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sp1-software-${VT_VERSION}-src.tar.xz
         COMMAND ${CMAKE_COMMAND} .
         COMMAND make
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer
     )
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/bin/spcom
@@ -68,7 +67,7 @@ if(BUILD_VT)
         PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     )
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib/libvisiontransfer.so
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/lib/libvisiontransfer.so
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     )
 
@@ -78,7 +77,7 @@ if(BUILD_VT)
         PATTERN "CMakeFiles" EXCLUDE
     )
 
-    link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/lib)
+    link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/lib)
 
 else()
 
@@ -91,20 +90,28 @@ endif()
 ## Build ##
 ###########
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+# Activate c++11 support
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+if(COMPILER_SUPPORTS_CXX11)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif(COMPILER_SUPPORTS_CXX0X)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+else()
+    message(WARNING "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+endif()
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer
     ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/spcom/helpers
-    ${Boost_INCLUDE_DIRS} ${SDL_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS}
-    ${catkin_INCLUDE_DIRS})
+    ${Boost_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
 # Declare a C++ executable
 add_executable(nerian_sp1_node
     src/nerian_sp1_node.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/spcom/helpers/colorcoder.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/spcom/helpers/sdlwindow.cpp
 )
 
 # Add cmake target dependencies of the executable
@@ -114,7 +121,7 @@ add_dependencies(nerian_sp1_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 
 # Specify libraries to link a library or executable target against
 target_link_libraries(nerian_sp1_node ${catkin_LIBRARIES} ${Boost_LIBRARIES}
-  ${SDL_LIBRARY} ${OpenCV_LIBS} visiontransfer)
+  ${OpenCV_LIBS} visiontransfer)
 
 #############
 ## Install ##
