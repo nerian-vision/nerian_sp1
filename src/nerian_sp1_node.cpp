@@ -302,7 +302,13 @@ private:
         }
 
         // Get 3D points
-        float* pointMap = recon3d->createPointMap(imagePair, 0);
+        float* pointMap = nullptr;
+        try {
+            pointMap = recon3d->createPointMap(imagePair, 0);
+        } catch(std::exception& ex) {
+            cerr << "Error creating point cloud: " << ex.what() << endl;
+            return;
+        } 
 
         // Create message object and set header
         pointCloudMsg->header.stamp = stamp;
