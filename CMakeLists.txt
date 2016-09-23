@@ -62,11 +62,6 @@ if(BUILD_VT)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer
     )
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/bin/spcom
-        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-        PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-    )
-
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/lib/libvisiontransfer.so
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     )
