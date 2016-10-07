@@ -2,6 +2,13 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Updated to SP1 software release 3.0.0
+* Removed automatic installation of spcom
+* Handling of point cloud exceptions
+* Contributors: Konstantin Schauwecker
+
 1.3.3 (2016-05-17)
 ------------------
 * Updated SP1 software release to version 2.1.6
