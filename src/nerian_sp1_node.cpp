@@ -108,8 +108,10 @@ public:
         // Create publishers
         disparityPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
             "/nerian_sp1/disparity_map", 5)));
-        imagePublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
+        leftImagePublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
             "/nerian_sp1/left_image", 5)));
+        rightImagePublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
+            "/nerian_sp1/right_image", 5)));
 
         if(calibFile == "" ) {
             ROS_WARN("No camera calibration file configured. Cannot publish detailed camera information!");
@@ -145,11 +147,11 @@ public:
             ros::Time stamp = ros::Time::now();
 
             // Publish the selected messages
-            if(imagePublisher->getNumSubscribers() > 0) {
+            if(leftImagePublisher->getNumSubscribers() > 0) {
                 publishImageMsg(imagePair, stamp);
             }
 
-            if(disparityPublisher->getNumSubscribers() > 0) {
+            if(disparityPublisher->getNumSubscribers() > 0 || rightImagePublisher->getNumSubscribers() > 0) {
                 publishDispMapMsg(imagePair, stamp);
             }
 
@@ -185,7 +187,8 @@ private:
     ros::NodeHandle nh;
     boost::scoped_ptr<ros::Publisher> cloudPublisher;
     boost::scoped_ptr<ros::Publisher> disparityPublisher;
-    boost::scoped_ptr<ros::Publisher> imagePublisher;
+    boost::scoped_ptr<ros::Publisher> leftImagePublisher;
+    boost::scoped_ptr<ros::Publisher> rightImagePublisher;
     boost::scoped_ptr<ros::Publisher> cameraInfoPublisher;
 
     // Parameters
@@ -226,7 +229,7 @@ private:
 
 
         msg->encoding = "mono8";
-        imagePublisher->publish(msg);
+        leftImagePublisher->publish(msg);
     }
 
     /**
@@ -239,14 +242,15 @@ private:
         cvImg.header.stamp = stamp;
         cvImg.header.seq = imagePair.getSequenceNumber(); // Actually ROS will overwrite this
 
-        cv::Mat_<unsigned short> monoImg(imagePair.getHeight(), imagePair.getWidth(),
-            reinterpret_cast<unsigned short*>(imagePair.getPixelData(1)),
-            imagePair.getRowStride(1));
+        bool format12Bit = (imagePair.getPixelFormat(1) == ImagePair::FORMAT_12_BIT);
+        cv::Mat monoImg(imagePair.getHeight(), imagePair.getWidth(),
+            format12Bit ? CV_16UC1 : CV_8UC1,
+            imagePair.getPixelData(1), imagePair.getRowStride(1));
         string encoding = "";
 
-        if(!colorCodeDispMap) {
+        if(!colorCodeDispMap || !format12Bit) {
             cvImg.image = monoImg;
-            encoding = "mono16";
+            encoding = (format12Bit ? "mono16": "mono8");
         } else {
             if(colCoder == NULL) {
                 colCoder.reset(new ColorCoder(ColorCoder::COLOR_RED_BLUE_BGR, 0, 16*111, true, true));
@@ -259,15 +263,20 @@ private:
             }
 
             cv::Mat_<cv::Vec3b> dispSection = colDispMap(cv::Rect(0, 0, monoImg.cols, monoImg.rows));
-            colCoder->codeImage(monoImg, dispSection);
+            
+            colCoder->codeImage(cv::Mat_<unsigned short>(monoImg), dispSection);
             cvImg.image = colDispMap;
             encoding = "bgr8";
         }
 
-        if(disparityPublisher->getNumSubscribers() > 0) {
-            sensor_msgs::ImagePtr msg = cvImg.toImageMsg();
-            msg->encoding = encoding;
+        sensor_msgs::ImagePtr msg = cvImg.toImageMsg();
+        msg->encoding = encoding;
+
+        if(disparityPublisher->getNumSubscribers() > 0 && format12Bit) {
             disparityPublisher->publish(msg);
+        }
+        if(rightImagePublisher->getNumSubscribers() > 0 && !format12Bit) {
+            rightImagePublisher->publish(msg);
         }
     }
 
@@ -294,6 +303,10 @@ private:
      * as point cloud.
      */
     void publishPointCloudMsg(ImagePair& imagePair, ros::Time stamp) {
+        if(imagePair.getPixelFormat(1) != ImagePair::FORMAT_12_BIT) {
+            return; // This is not a disparity map
+        }
+    
         // Transform Q-matrix if desired
         float qRos[16];
         if(rosCoordinateSystem) {
