@@ -1,4 +1,7 @@
 <launch>
+    <!-- Configure SP1 operation mode to stereo matching -->
+    <!-- <node pkg="nerian_sp1" type="config_sp1_stereo.sh" name="config_sp1" output="screen" /> -->
+
     <!-- <arg name="launchPrefix" value="gdb -ex 'catch throw' -ex run \-\-args" /> -->
     <!-- <arg name="launchPrefix" value="valgrind" /> -->
     <arg name="launchPrefix" value="" />
