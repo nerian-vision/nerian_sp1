@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.5.1 (2017-01-19)
+------------------
 * Added proper error reporting in case of exceptions
 * Contributors: Konstantin Schauwecker
 
