@@ -131,54 +131,58 @@ public:
      * \brief The main loop of this node
      */
     int run() {
-        ros::Time lastLogTime;
-        int lastLogFrames = 0;
+        try {
+            ros::Time lastLogTime;
+            int lastLogFrames = 0;
 
-        AsyncTransfer asyncTransfer(useTcp ? ImageTransfer::TCP_CLIENT : ImageTransfer::UDP,
-            remoteHost.c_str(), remotePort.c_str(), localHost.c_str(), localPort.c_str());
+            AsyncTransfer asyncTransfer(useTcp ? ImageTransfer::TCP_CLIENT : ImageTransfer::UDP,
+                remoteHost.c_str(), remotePort.c_str(), localHost.c_str(), localPort.c_str());
 
-        while(ros::ok()) {
-            // Receive image data
-            ImagePair imagePair;
-            if(!asyncTransfer.collectReceivedImagePair(imagePair, 0.5)) {
-                continue;
-            }
-
-            ros::Time stamp = ros::Time::now();
-
-            // Publish the selected messages
-            if(leftImagePublisher->getNumSubscribers() > 0) {
-                publishImageMsg(imagePair, stamp);
-            }
-
-            if(disparityPublisher->getNumSubscribers() > 0 || rightImagePublisher->getNumSubscribers() > 0) {
-                publishDispMapMsg(imagePair, stamp);
-            }
-
-            if(cloudPublisher->getNumSubscribers() > 0) {
-                if(recon3d == nullptr) {
-                    // First initialize
-                    initPointCloud();
+            while(ros::ok()) {
+                // Receive image data
+                ImagePair imagePair;
+                if(!asyncTransfer.collectReceivedImagePair(imagePair, 0.5)) {
+                    continue;
                 }
 
-                publishPointCloudMsg(imagePair, stamp);
-            }
+                ros::Time stamp = ros::Time::now();
 
-            if(cameraInfoPublisher != NULL && cameraInfoPublisher->getNumSubscribers() > 0) {
-                publishCameraInfo(stamp, imagePair);
-            }
-
-            // Display some simple statistics
-            frameNum++;
-            if(stamp.sec != lastLogTime.sec) {
-                if(lastLogTime != ros::Time()) {
-                    double dt = (stamp - lastLogTime).toSec();
-                    double fps = (frameNum - lastLogFrames) / dt;
-                    ROS_INFO("%.1f fps", fps);
+                // Publish the selected messages
+                if(leftImagePublisher->getNumSubscribers() > 0) {
+                    publishImageMsg(imagePair, stamp);
                 }
-                lastLogFrames = frameNum;
-                lastLogTime = stamp;
+
+                if(disparityPublisher->getNumSubscribers() > 0 || rightImagePublisher->getNumSubscribers() > 0) {
+                    publishDispMapMsg(imagePair, stamp);
+                }
+
+                if(cloudPublisher->getNumSubscribers() > 0) {
+                    if(recon3d == nullptr) {
+                        // First initialize
+                        initPointCloud();
+                    }
+
+                    publishPointCloudMsg(imagePair, stamp);
+                }
+
+                if(cameraInfoPublisher != NULL && cameraInfoPublisher->getNumSubscribers() > 0) {
+                    publishCameraInfo(stamp, imagePair);
+                }
+
+                // Display some simple statistics
+                frameNum++;
+                if(stamp.sec != lastLogTime.sec) {
+                    if(lastLogTime != ros::Time()) {
+                        double dt = (stamp - lastLogTime).toSec();
+                        double fps = (frameNum - lastLogFrames) / dt;
+                        ROS_INFO("%.1f fps", fps);
+                    }
+                    lastLogFrames = frameNum;
+                    lastLogTime = stamp;
+                }
             }
+        } catch(const std::exception& ex) {
+            ROS_FATAL("Exception occured: %s", ex.what());
         }
     }
 
@@ -263,7 +267,7 @@ private:
             }
 
             cv::Mat_<cv::Vec3b> dispSection = colDispMap(cv::Rect(0, 0, monoImg.cols, monoImg.rows));
-            
+
             colCoder->codeImage(cv::Mat_<unsigned short>(monoImg), dispSection);
             cvImg.image = colDispMap;
             encoding = "bgr8";
@@ -306,7 +310,7 @@ private:
         if(imagePair.getPixelFormat(1) != ImagePair::FORMAT_12_BIT) {
             return; // This is not a disparity map
         }
-    
+
         // Transform Q-matrix if desired
         float qRos[16];
         if(rosCoordinateSystem) {
@@ -321,7 +325,7 @@ private:
         } catch(std::exception& ex) {
             cerr << "Error creating point cloud: " << ex.what() << endl;
             return;
-        } 
+        }
 
         // Create message object and set header
         pointCloudMsg->header.stamp = stamp;
