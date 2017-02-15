@@ -1,2 +1,7 @@
 #!/bin/bash
-curl --data "op_mode=rect" http://192.168.10.10/settings/ > /dev/null
+if [ $# -lt 1 ]; then
+	echo "Usage: $0 SP1-ADDRESS"
+	exit 1
+fi
+
+curl --data "op_mode=rect" http://$1/settings/ > /dev/null
