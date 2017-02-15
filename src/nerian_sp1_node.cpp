@@ -104,6 +104,12 @@ public:
         if (!privateNh.getParam("calibration_file", calibFile)) {
             calibFile = "";
         }
+        if (!privateNh.getParam("delay_execution", execDelay)) {
+            execDelay = 0;
+        }
+
+        // Apply an initial delay if configured
+        ros::Duration(execDelay).sleep();
 
         // Create publishers
         disparityPublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
@@ -207,6 +213,7 @@ private:
     std::string remoteHost;
     std::string localHost;
     std::string calibFile;
+    double execDelay;
 
     // Other members
     int frameNum;
