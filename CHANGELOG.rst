@@ -2,6 +2,13 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Updated SP1 software to version 4.1.0
+* Script and launch file for downloading camera calibration
+* Added optional execution delay
+* Contributors: Konstantin Schauwecker
+
 1.5.1 (2017-01-19)
 ------------------
 * Added proper error reporting in case of exceptions
