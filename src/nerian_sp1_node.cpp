@@ -104,8 +104,13 @@ public:
         if (!privateNh.getParam("calibration_file", calibFile)) {
             calibFile = "";
         }
+
         if (!privateNh.getParam("delay_execution", execDelay)) {
             execDelay = 0;
+        }
+
+        if (!privateNh.getParam("max_depth", maxDepth)) {
+            maxDepth = -1;
         }
 
         // Apply an initial delay if configured
@@ -214,6 +219,7 @@ private:
     std::string localHost;
     std::string calibFile;
     double execDelay;
+    double maxDepth;
 
     // Other members
     int frameNum;
@@ -353,8 +359,20 @@ private:
             pointCloudMsg->is_dense = false;
         }
 
-        memcpy(&pointCloudMsg->data[0], pointMap,
-            imagePair.getWidth()*imagePair.getHeight()*4*sizeof(float));
+        if(maxDepth < 0) {
+            // Just copy everything
+            memcpy(&pointCloudMsg->data[0], pointMap,
+                imagePair.getWidth()*imagePair.getHeight()*4*sizeof(float));
+        } else {
+            // Only copy points up to maximum depth
+            if(rosCoordinateSystem) {
+                copyPointCloudClamped<0>(pointMap, reinterpret_cast<float*>(&pointCloudMsg->data[0]),
+                    imagePair.getWidth()*imagePair.getHeight());
+            } else {
+                copyPointCloudClamped<2>(pointMap, reinterpret_cast<float*>(&pointCloudMsg->data[0]),
+                    imagePair.getWidth()*imagePair.getHeight());
+            }
+        }
 
         // Copy intensity values
         if(intensityChannel) {
@@ -382,6 +400,26 @@ private:
         }
 
         cloudPublisher->publish(pointCloudMsg);
+    }
+
+    /**
+     * \brief Copies all points in a point cloud that have a depth smaller
+     * than maxDepth. Other points are set to NaN.
+     */
+    template <int coord> void copyPointCloudClamped(float* src, float* dst, int size) {
+        // Only copy points that are below the minimum depth
+        float* endPtr = src + 4*size;
+        for(float *srcPtr = src, *dstPtr = dst; srcPtr < endPtr; srcPtr+=4, dstPtr+=4) {
+            if(srcPtr[coord] > maxDepth) {
+                dstPtr[0] = std::numeric_limits<float>::quiet_NaN();
+                dstPtr[1] = std::numeric_limits<float>::quiet_NaN();
+                dstPtr[2] = std::numeric_limits<float>::quiet_NaN();
+            } else {
+                dstPtr[0] = srcPtr[0];
+                dstPtr[1] = srcPtr[1];
+                dstPtr[2] = srcPtr[2];
+            }
+        }
     }
 
     /**

@@ -32,9 +32,10 @@
         <param name="local_host" type="string" value="0.0.0.0" />
         <param name="local_port" type="string" value="7681" />
 
-        <param name="calibration_file" type="string" value="$(arg calib_file)" />
+        <param name="calibration_file" type="string" value="$(arg calib_file)"/>
         <param name="frame" type="string" value="map" />
 
-	<param name="delay_execution" type="double" value="2" />
+        <param name="delay_execution" type="double" value="2" />
+        <param name="max_depth" type="double" value="-1" />
     </node>
 </launch>
