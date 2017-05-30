@@ -124,13 +124,7 @@ public:
         rightImagePublisher.reset(new ros::Publisher(nh.advertise<sensor_msgs::Image>(
             "/nerian_sp1/right_image", 5)));
 
-        if(calibFile == "" ) {
-            ROS_WARN("No camera calibration file configured. Cannot publish detailed camera information!");
-        } else {
-             if (!calibStorage.open(calibFile, cv::FileStorage::READ)) {
-                throw std::runtime_error("Error reading calibration file: " + calibFile);
-            }
-        }
+        loadCameraCalibration();
 
         cameraInfoPublisher.reset(new ros::Publisher(nh.advertise<nerian_sp1::StereoCameraInfo>(
             "/nerian_sp1/stereo_camera_info", 1)));
@@ -230,6 +224,28 @@ private:
     cv::FileStorage calibStorage;
     nerian_sp1::StereoCameraInfoPtr camInfoMsg;
     ros::Time lastCamInfoPublish;
+
+    /**
+     * \brief Loads a camera calibration file if configured
+     */
+    void loadCameraCalibration() {
+        if(calibFile == "" ) {
+            ROS_WARN("No camera calibration file configured. Cannot publish detailed camera information!");
+        } else {
+            bool success = false;
+            try {
+                if (calibStorage.open(calibFile, cv::FileStorage::READ)) {
+                    success = true;
+                }
+            } catch(...) {
+            }
+
+            if(!success) {
+                ROS_WARN("Error reading calibration file: %s\n"
+                    "Cannot publish detailed camera information!", calibFile.c_str());
+            }
+        }
+    }
 
     /**
      * \brief Publishes a rectified left camera image
