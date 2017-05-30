@@ -2,8 +2,8 @@
 Changelog for package nerian_sp1
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.2 (2017-05-30)
+------------------
 * Allow launch even if calibration file is not found
 * Implemented upper limit for point cloud depth (max_depth parameter)
 * Contributors: Konstantin Schauwecker
