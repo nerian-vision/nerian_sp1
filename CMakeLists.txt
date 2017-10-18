@@ -32,7 +32,6 @@ generate_messages(DEPENDENCIES sensor_msgs)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  LIBRARIES visiontransfer
   CATKIN_DEPENDS roscpp message_runtime sensor_msgs
 #  DEPENDS system_lib
 )
@@ -61,18 +60,6 @@ if(BUILD_VT)
         COMMAND make
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer
     )
-
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/lib/libvisiontransfer.so
-        DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    )
-
-    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/visiontransfer
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-        FILES_MATCHING PATTERN "*.h"
-        PATTERN "CMakeFiles" EXCLUDE
-    )
-
-    link_directories(${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/lib)
 
 else()
 
@@ -115,8 +102,8 @@ add_dependencies(nerian_sp1_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
     visiontransfer_stub)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(nerian_sp1_node ${catkin_LIBRARIES} ${Boost_LIBRARIES}
-  ${OpenCV_LIBS} visiontransfer)
+target_link_libraries(nerian_sp1_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OpenCV_LIBS}
+    ${CMAKE_CURRENT_BINARY_DIR}/sp1-software-${VT_VERSION}-src/libvisiontransfer/lib/libvisiontransfer-static.a)
 
 #############
 ## Install ##
