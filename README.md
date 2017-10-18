@@ -1,3 +1,6 @@
 # nerian_sp1
+
 ROS node for the SP1 stereo vision system by Nerian Vision Technologies.
-Please check the correspoding ROS wiki page for documentation: http://wiki.ros.org/nerian_sp1
+
+This node has been superseeded by the nerian_stereo node. Please see http://wiki.ros.org/nerian_stereo
+
